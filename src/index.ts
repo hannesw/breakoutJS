@@ -1,7 +1,7 @@
 import * as screen from "./lib/screen";
 
 // Settings
-const windowSize: screen.Rectangle = {
+const canvasSize: screen.Rectangle = {
     width: 720,
     height: 500,
     margins: {
@@ -21,20 +21,39 @@ const brickSize: screen.Rectangle = {
 
 // Setup
 let canvas = <HTMLCanvasElement>document.getElementById("myCanvas");
-canvas.setAttribute("width", String(windowSize.width));
-canvas.setAttribute("height", String(windowSize.height));
+canvas.setAttribute("width", String(canvasSize.width));
+canvas.setAttribute("height", String(canvasSize.height));
 let ctx = canvas.getContext("2d");
 
 function initialize(ctx: CanvasRenderingContext2D) {
     // clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const brickCount = windowSize.width % (brickSize.width * 1.5); // times 1.5 because gap is half of width
-    for (let i = 0; i < brickCount; i++) {
-        ctx.beginPath();
-        ctx.rect(20, 40, 50, 50);
-        ctx.fillStyle = "#FF0000";
-        ctx.fill();
-        ctx.closePath();
+    // Calculate brick amount based on widths
+    const brickColumnCount = screen.calcBoxAmount(
+        canvasSize,
+        brickSize,
+        screen.Axis.X
+    );
+    const brickRowCount = screen.calcBoxAmount(
+        canvasSize,
+        brickSize,
+        screen.Axis.Y
+    );
+    // Draw the bricks on screen
+    const tickX =
+        (canvasSize.width - 2 * canvasSize.margins.x) / (brickColumnCount + 1);
+    const tickY =
+        (canvasSize.height - 2 * canvasSize.margins.y) / (brickRowCount + 1);
+    let cursor: number[] = [canvasSize.margins.x, canvasSize.margins.y];
+
+    for (let i = 0; i < brickRowCount; i++) {
+        for (let j = 0; j < brickColumnCount; j++) {
+            ctx.beginPath();
+            ctx.rect(cursor[0] + j * tickY, cursor[1] + i * tickX, 50, 50);
+            ctx.fillStyle = "#FF0000";
+            ctx.fill();
+            ctx.closePath();
+        }
     }
 }
 
