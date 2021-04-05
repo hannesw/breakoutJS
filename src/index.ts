@@ -31,12 +31,18 @@ const paddleSize: Models.Rectangle = {
 const ballRadius = 20;
 let dX = 2;
 let dY = 2;
+let rightPressed = false;
+let leftPressed = false;
+const paddleTick = 7;
 
 // Setup
 let canvas = <HTMLCanvasElement>document.getElementById("myCanvas");
 canvas.setAttribute("width", String(canvasSize.width));
 canvas.setAttribute("height", String(canvasSize.height));
 let ctx = canvas.getContext("2d");
+
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false);
 
 // Globals
 let ballPosition: number[] = [0, 0];
@@ -114,8 +120,10 @@ function drawBall(): void {
     // Check for collision with paddle
     // two conditions are needed because of the refresh rate of the game loop
     if (
-        ballPosition[1] <= paddlePosition[1] - ballRadius &&
-        ballPosition[1] >= paddlePosition[1] - ballRadius - 5
+        ballPosition[1] + ballRadius <= paddlePosition[1] + paddleSize.height &&
+        ballPosition[1] + ballRadius >= paddlePosition[1] &&
+        ballPosition[0] <= paddlePosition[0] + paddleSize.width / 2 &&
+        ballPosition[0] >= paddlePosition[0] - paddleSize.width / 2
     ) {
         dX = -dX;
         dY = -dY;
@@ -152,6 +160,23 @@ function drawBricks(): void {
 }
 
 function drawPaddle(): void {
+    if (rightPressed) {
+        if (
+            paddlePosition[0] + paddleSize.width >=
+            canvasSize.width - canvasSize.margins.x
+        ) {
+            paddlePosition[0] =
+                canvasSize.width - canvasSize.margins.x - paddleSize.width;
+        } else {
+            paddlePosition[0] = paddlePosition[0] + paddleTick;
+        }
+    } else if (leftPressed) {
+        if (paddlePosition[0] <= 0 + canvasSize.margins.x) {
+            paddlePosition[0] = 0 + canvasSize.margins.x;
+        } else {
+            paddlePosition[0] = paddlePosition[0] - paddleTick;
+        }
+    }
     ctx.beginPath();
     ctx.rect(
         paddlePosition[0],
@@ -226,4 +251,20 @@ function calcBallOrigin(
     const x = canvasSize.width / 2;
     const y = maxY + brick.height + 2 * radius;
     return [x, y];
+}
+
+function keyDownHandler(e: KeyboardEvent) {
+    if (e.key == "Right" || e.key == "ArrowRight") {
+        rightPressed = true;
+    } else if (e.key == "Left" || e.key == "ArrowLeft") {
+        leftPressed = true;
+    }
+}
+
+function keyUpHandler(e: KeyboardEvent) {
+    if (e.key == "Right" || e.key == "ArrowRight") {
+        rightPressed = false;
+    } else if (e.key == "Left" || e.key == "ArrowLeft") {
+        leftPressed = false;
+    }
 }
