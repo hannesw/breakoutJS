@@ -29,11 +29,14 @@ const paddleSize: Models.Rectangle = {
 };
 
 const ballRadius = 20;
-let dX = 2;
-let dY = 2;
+let dX = 3;
+let dY = 3;
 let rightPressed = false;
 let leftPressed = false;
 const paddleTick = 7;
+let gameover = false;
+let won = false;
+let paused = true;
 
 // Setup
 let canvas = <HTMLCanvasElement>document.getElementById("myCanvas");
@@ -56,21 +59,31 @@ let maxY = 0;
 /*
  * Run the game
  */
-initialize(ctx);
-setInterval(gameLoop, 10);
+initialize();
+let gameLoop = setInterval(run, 10);
 
 /*
  * Actual game logic
  */
 
-function gameLoop() {
+function run() {
+    if (won == true) {
+        clearInterval(gameLoop);
+        alert("you won! Please reload the page.");
+    }
+    if (gameover == true) {
+        clearInterval(gameLoop);
+        alert("GAME OVER! Please reload the page to try again.");
+    }
+
+    checkWin();
     clearCanvas();
     drawBall();
     drawBricks();
     drawPaddle();
 }
 
-function initialize(ctx: CanvasRenderingContext2D) {
+function initialize() {
     clearCanvas();
     // draw bricks
     const brickCoords = calcBrickOrigins(canvasSize, brickSize);
@@ -105,30 +118,7 @@ function initialize(ctx: CanvasRenderingContext2D) {
  * Functions to draw entities
  */
 function drawBall(): void {
-    // Check for collision with the walls
-    if (
-        ballPosition[0] + dX < 0 + ballRadius ||
-        ballPosition[0] + ballRadius > canvasSize.width - canvasSize.margins.x
-    ) {
-        dX = -dX;
-    }
-
-    if (ballPosition[1] + dY < 0 + ballRadius) {
-        dY = -dY;
-    }
-
-    // Check for collision with paddle
-    // two conditions are needed because of the refresh rate of the game loop
-    if (
-        ballPosition[1] + ballRadius <= paddlePosition[1] + paddleSize.height &&
-        ballPosition[1] + ballRadius >= paddlePosition[1] &&
-        ballPosition[0] <= paddlePosition[0] + paddleSize.width / 2 &&
-        ballPosition[0] >= paddlePosition[0] - paddleSize.width / 2
-    ) {
-        dX = -dX;
-        dY = -dY;
-    }
-
+    collisionDetection();
     ballPosition[0] = ballPosition[0] + dX;
     ballPosition[1] = ballPosition[1] + dY;
     ctx.beginPath();
@@ -143,6 +133,9 @@ function drawBall(): void {
     ctx.fillStyle = "blue";
     ctx.fill();
     ctx.closePath();
+    if (ballPosition[1] > canvasSize.height + ballRadius) {
+        gameover = true;
+    }
 }
 
 function drawBricks(): void {
@@ -196,6 +189,103 @@ function clearCanvas() {
 /*
  * Helper functions
  */
+
+function checkWin() {
+    const nonhitBricks = bricks.filter((brick) => brick.hit == false).length;
+    if (nonhitBricks <= 0) {
+        won = true;
+    }
+}
+
+function collisionDetection() {
+    // Check for collision with the walls
+    if (
+        ballPosition[0] + dX < 0 + ballRadius ||
+        ballPosition[0] + ballRadius > canvasSize.width - canvasSize.margins.x
+    ) {
+        dX = -dX;
+    }
+
+    if (ballPosition[1] + dY < 0 + ballRadius) {
+        dY = -dY;
+    }
+
+    // Check for collision with paddle
+    // two conditions are needed because of the refresh rate of the game loop
+    if (
+        circleRectangleCollide(
+            ballPosition[0],
+            ballPosition[1],
+            ballRadius,
+            paddlePosition[0],
+            paddlePosition[1],
+            paddleSize.width,
+            paddleSize.height
+        )
+    ) {
+        dX = -dX + getRandomArbitrary(-5, 5); // add some randomness to change direction of ball
+        if (dX > 5 || dX < -5) {
+            // Prevent to big or small dX
+            dX = 3;
+        }
+        dY = -dY;
+    }
+
+    // Check for collision with the bricks
+
+    for (let brick of bricks) {
+        if (brick.hit == true) {
+            continue;
+        }
+        if (
+            circleRectangleCollide(
+                ballPosition[0],
+                ballPosition[1],
+                ballRadius,
+                brick.x,
+                brick.y,
+                brick.width,
+                brick.height
+            )
+        ) {
+            brick.hit = true;
+            dY = -dY;
+        }
+    }
+}
+
+function circleRectangleCollide(
+    circleX: number,
+    circleY: number,
+    radius: number,
+    rectangleX: number,
+    rectangleY: number,
+    rectangleWidth: number,
+    rectangleHeight: number
+): boolean {
+    // Inspired by http://www.jeffreythompson.org/collision-detection/circle-rect.php
+    let testX = circleX;
+    let testY = circleY;
+
+    if (circleX < rectangleX) {
+        testX = rectangleX; // left edge
+    } else if (circleX > rectangleX + rectangleWidth) {
+        testX = rectangleX + rectangleWidth; // right edge
+    }
+
+    if (circleY < rectangleY) {
+        testY = rectangleY; // top edge
+    } else if (circleY > rectangleY + rectangleHeight) {
+        testY = rectangleY + rectangleHeight; // bottom ege
+    }
+    const distX = circleX - testX;
+    const distY = circleY - testY;
+    const distance = Math.sqrt(distX * distX + distY * distY);
+    if (distance <= radius) {
+        return true;
+    }
+    return false;
+}
 
 function calcBrickOrigins(
     canvasSize: Models.Rectangle,
@@ -258,6 +348,9 @@ function keyDownHandler(e: KeyboardEvent) {
         rightPressed = true;
     } else if (e.key == "Left" || e.key == "ArrowLeft") {
         leftPressed = true;
+    } else if (e.key == " ") {
+        console.log(paused, !paused);
+        paused = !paused;
     }
 }
 
@@ -267,4 +360,8 @@ function keyUpHandler(e: KeyboardEvent) {
     } else if (e.key == "Left" || e.key == "ArrowLeft") {
         leftPressed = false;
     }
+}
+
+function getRandomArbitrary(min: number, max: number): number {
+    return Math.random() * (max - min) + min;
 }
